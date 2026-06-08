@@ -8,15 +8,18 @@ import (
 	"path/filepath"
 
 	"schednext/internal/util"
+	"schednext/internal/model"
 )
 
 const socketPath = "/run/schednext/schednext.sock"
 
-func StartIPCServer(homeRoot string) {
+var ipcListener net.Listener
+
+func StartIPCServer(optPath string) {
 	os.MkdirAll(filepath.Dir(socketPath), 0755)
 	os.Remove(socketPath)
 
-	l, err := net.Listen("unix", socketPath)
+	ipcListener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		log.Fatal("failed to listen:", err)
 	}
@@ -25,44 +28,53 @@ func StartIPCServer(homeRoot string) {
 
 	go func() {
 		for {
-			conn, err := l.Accept()
+			conn, err := ipcListener.Accept()
 			if err != nil {
 				continue
 			}
-			go handleConn(conn, homeRoot)
+			go handleConn(conn, optPath)
 		}
 	}()
 }
 
-func handleConn(conn net.Conn, homeRoot string) {
+func ShutdownIPC() {
+
+	if ipcListener != nil {
+		ipcListener.Close()
+	}
+
+	os.Remove(socketPath)
+}
+
+func handleConn(conn net.Conn, optPath string) {
 	defer conn.Close()
 
-	var req IPCRequest
+	var req model.IPCRequest
 	if err := json.NewDecoder(conn).Decode(&req); err != nil {
 		return
 	}
 
-	resp := handleRequest(req, homeRoot)
+	resp := handleRequest(req, optPath)
 	json.NewEncoder(conn).Encode(resp)
 }
 
-func handleRequest(req IPCRequest, homeRoot string) IPCResponse {
-	cfgPath := filepath.Join(homeRoot, req.User, configName)
+func handleRequest(req model.IPCRequest, optPath string) model.IPCResponse {
+	cfgPath := filepath.Join(optPath, req.User, configName)
 
 	f, err := os.OpenFile(cfgPath, os.O_RDWR, 0644)
 	if err != nil {
-		return IPCResponse{false, "config not found"}
+		return model.IPCResponse{false, "config not found"}
 	}
 	defer f.Close()
 
 	if err := lockFile(f); err != nil {
-		return IPCResponse{false, "config busy"}
+		return model.IPCResponse{false, "config busy"}
 	}
 	defer unlockFile(f)
 
-	var cfg Config
+	var cfg model.Config
 	if err := util.ReadConfig(cfgPath, &cfg); err != nil {
-		return IPCResponse{false, "invalid config"}
+		return model.IPCResponse{false, "invalid config"}
 	}
 
 	var result string
@@ -76,13 +88,13 @@ func handleRequest(req IPCRequest, homeRoot string) IPCResponse {
 				cfg.Jobs[i].Enabled = false
 				result = "Job stopped"
 			default:
-				return IPCResponse{false, "unknown action"}
+				return model.IPCResponse{false, "unknown action"}
 			}
 
 			util.WriteConfigAtomic(cfgPath, &cfg)
-			return IPCResponse{true, result}
+			return model.IPCResponse{true, result}
 		}
 	}
 
-	return IPCResponse{false, "job not found"}
+	return model.IPCResponse{false, "job not found"}
 }

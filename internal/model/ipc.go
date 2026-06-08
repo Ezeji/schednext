@@ -1,4 +1,4 @@
-package agent
+package model
 
 type IPCRequest struct {
 	Action string `json:"action"` // start | stop | status

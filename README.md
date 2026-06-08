@@ -1,28 +1,93 @@
 # SchedNext
 
-> A lightweight, filesystem-based job scheduler for cloud VMs, minimal OS environments, and edge devices.
+> A lightweight agent runtime for cloud, edge, and embedded Linux environments.
 
-SchedNext is a minimal job scheduler designed for:
+SchedNext is a lightweight runtime for deploying, scheduling, and observing agents.
 
-- Cloud virtual machines
-- Minimal / custom OS environments
-- Edge & ARM devices
-- Containers
-- Air-gapped systems
+It is designed for environments where traditional scheduling platforms may be too heavy or unavailable, including edge devices, cloud VMs, custom Linux distributions, containers, and air-gapped systems.
 
-It provides cron-based execution, persistent job state, atomic config updates, and a simple CLI for runtime interaction — **without requiring databases or heavy infrastructure.**
+SchedNext combines:
+
+- Agent execution
+- Persistent runtime state
+- Filesystem-based observability
+- Runtime control via CLI
+
+without requiring databases, web services, or large infrastructure dependencies.
 
 ---
 
 ## ✨ Features
 
 - ⏱ Cron-based scheduling
-- 🔁 Persistent job state (`lastRunAt`, `lastExitCode`)
-- 🔒 File locking & runtime protection
-- 🧾 Atomic config writes
-- 🖥 Simple CLI for job control
+- 🔁 Persistent agent state
+- 🔒 Runtime locking
+- 🧾 Atomic config updates
+- 🖥 CLI runtime control
+- 📊 Filesystem observability
+- 🧠 Dynamic runtime state projection
 - 📦 Small static binaries
-- 🧠 Designed for minimal OS / low-resource environments
+- ⚡ Low memory footprint
+
+---
+
+## 📊 Observability via StateLens
+
+SchedNext exposes live runtime state through a virtual filesystem.
+
+Inspired by Linux `/proc` and `/sys`, runtime state can be inspected using standard Unix tools.
+
+Examples:
+
+```bash
+cat /statelens/cpu/summary
+
+cat /statelens/mem/summary
+
+cat /statelens/schednext/all
+
+cat /statelens/schednext/sensor
+```
+
+No web server
+No metrics agent
+No SDK
+
+Just files
+
+---
+
+## StateLens Layout
+
+```
+/statelens
+├── cpu
+│   └── summary
+├── mem
+│   └── summary
+├── net
+│   ├── interfaces
+│   └── routes
+└── schednext
+    ├── all
+    ├── heartbeat
+    └── sensor
+```
+
+## Examples
+
+```
+$ cat /statelens/cpu/summary
+ 18:42:31 up 3 days,  2 users,  load average: 0.15, 0.09, 0.05
+
+$ cat /statelens/mem/summary
+              total        used        free      shared  buff/cache   available
+Mem:           3.8G        512M        2.4G         12M        896M        3.1G
+
+$ cat /statelens/schednext/all
+ heartbeat | idle | enabled=true | exit=0
+ sensor | running | enabled=true | exit=0
+```
 
 ---
 
@@ -32,7 +97,7 @@ SchedNext prioritizes:
 
 - **Simplicity** over complexity
 - **Predictable behavior** over magic
-- **Filesystem persistence** over databases
+- **Filesystem primitives** over infrastructure dependencies
 - **Low resource usage** over feature bloat
 
 No database  
@@ -69,12 +134,13 @@ inside the configuration file.
 
 ## 🏗 Architecture
 
-SchedNext consists of two binaries:
+SchedNext consists of three runtime components:
 
-| Binary | Purpose |
+| Component | Purpose |
 |--------|---------|
-| `schednext-agent` | Scheduler engine |
-| `schednext` | CLI controller |
+| `schednext-agent` | Executes and schedules agents |
+| `schednext` | Runtime control |
+| `statelens` | Filesystem observability |
 
 The CLI communicates with the agent via **IPC (Unix socket)**.
 
@@ -92,8 +158,8 @@ Example:
 {
   "jobs": [
     {
-      "id": "test-file",
-      "binary": "test_file",
+      "id": "sensor",
+      "binary": "sensor-agent",
       "cron": "*/2 * * * *",
       "enabled": false,
       "lastRunAt": "2025-12-20T12:45:00Z",
@@ -148,18 +214,19 @@ Example:
 ./schednext-agent
 ```
 
-Where `/home` contains user directories:
+Where `/opt` contains schednext runtime directory:
 
 ```
-/home/<user>/schednext.config
+/opt/schednext-runtime/schednext.config
 ```
 
 The agent:
 
-- Scans user directories
+- Locates runtime directory
 - Evaluates cron schedules
 - Applies runtime locks
 - Executes binaries
+- Streams runtime state
 - Persists job state
 
 ---
@@ -169,15 +236,15 @@ The agent:
 Basic commands:
 
 ```bash
-schednext start <user> <job-id>
-schednext stop <user> <job-id>
+schednext start <job-id>
+schednext stop <job-id>
 ```
 
 Examples:
 
 ```bash
-schednext start customer-ezeji test-file
-schednext stop customer-ezeji test-file
+schednext start sensor
+schednext stop sensor
 ```
 
 ---
@@ -194,93 +261,27 @@ go build -o schednext ./cmd/cli
 Cross-compile examples:
 
 ```bash
-GOOS=linux GOARCH=amd64 go build ./cmd/cli
-GOOS=linux GOARCH=amd64 go build ./cmd/agent
-GOOS=linux GOARCH=arm64 go build ./cmd/cli
-GOOS=linux GOARCH=arm64 go build ./cmd/agent
+GOOS=linux GOARCH=amd64 go build -o schednext ./cmd/cli
+GOOS=linux GOARCH=amd64 go build -o schednext-agent ./cmd/agent
+GOOS=linux GOARCH=arm64 go build -o schednext ./cmd/cli
+GOOS=linux GOARCH=arm64 go build -o schednext-agent ./cmd/agent
 ```
 
 ---
 
-## 🧪 Example Use Cases
+## 🧪 Use Cases
+
+SchedNext is designed for environments where lightweight deployment, runtime observability, and minimal operational dependencies are important.
+
+Examples:
 
 - Cloud VM automation
-- Edge device scheduling
-- Minimal OS task execution
-- Container cron replacement
-- Embedded automation runtimes
+- Edge devices
+- Robotics runtimes
+- IoT gateways
+- Custom Linux distributions
 - Air-gapped systems
-
----
-
-## ❓ Why Not Use cron / systemd timers / Kubernetes?
-
-SchedNext is **not meant to replace existing schedulers everywhere**.
-
-It targets environments where traditional tools may be unavailable, heavy, or insufficient.
-
----
-
-### cron
-
-cron is excellent for traditional Linux systems.
-
-**Limitations in some scenarios:**
-
-- No persistent job metadata
-- No built-in overlap protection
-- Harder runtime/dynamic control
-- Often absent in minimal OS / containers
-
-**SchedNext advantages:**
-
-- Persistent job state
-- Runtime locking
-- Atomic config updates
-- CLI-driven control
-
----
-
-### systemd timers
-
-systemd timers are powerful but:
-
-- systemd may not exist in minimal OS builds
-- Higher operational complexity
-- Less portable
-
-**SchedNext advantages:**
-
-- No init system dependency
-- Portable static binary
-- Minimal footprint
-
----
-
-### Kubernetes CronJobs
-
-K8s CronJobs are ideal inside clusters but:
-
-- Require Kubernetes
-- Heavy infrastructure dependency
-- Unsuitable for small VMs / edge devices
-
-**SchedNext advantages:**
-
-- No cluster required
-- Tiny runtime
-- Simple deployment
-
----
-
-### When SchedNext Makes Sense
-
-- Minimal / custom OS
-- Edge / ARM devices
-- Small cloud VMs
-- Containers without cron/systemd
-- Embedded runtimes
-- Air-gapped systems
+- Containers without cron or systemd
 
 ---
 
@@ -288,10 +289,13 @@ K8s CronJobs are ideal inside clusters but:
 
 Planned improvements:
 
-- [ ] Job execution history
-- [ ] Metrics / observability hooks
-- [ ] Optional pluggable logging sinks
-- [ ] REST / HTTP control API
+- [ ] Event-driven job triggers
+- [ ] Webhook-based execution
+- [ ] Remote node monitoring
+- [ ] Multi-node fleet management
+- [ ] Lightweight web dashboard
+- [ ] SchedNext OS
+- [ ] ARM-first edge deployment tooling
 
 ---
 

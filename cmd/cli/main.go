@@ -5,31 +5,22 @@ import (
 	"log"
 	"net"
 	"os"
+
+	"schednext/internal/model"
 )
 
 const socketPath = "/run/schednext/schednext.sock"
 
-type Request struct {
-	Action string `json:"action"`
-	User   string `json:"user"`
-	JobID  string `json:"jobId"`
-}
-
-type Response struct {
-	OK      bool   `json:"ok"`
-	Message string `json:"message"`
-}
-
 func main() {
-	if len(os.Args) < 4 {
-		log.Println("usage: schednext <start|stop> <user> <job-id>")
+	if len(os.Args) < 3 {
+		log.Println("usage: schednext <start|stop> <job-id>")
 		os.Exit(1)
 	}
 
-	req := Request{
+	req := model.IPCRequest{
 		Action: os.Args[1],
-		User:   os.Args[2],
-		JobID:  os.Args[3],
+		User:   "schednext-runtime",
+		JobID:  os.Args[2],
 	}
 
 	conn, err := net.Dial("unix", socketPath)
@@ -41,7 +32,7 @@ func main() {
 
 	json.NewEncoder(conn).Encode(req)
 
-	var resp Response
+	var resp model.IPCResponse
 	json.NewDecoder(conn).Decode(&resp)
 
 	if resp.OK {

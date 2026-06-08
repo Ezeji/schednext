@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/robfig/cron/v3"
+	"schednext/internal/model"
 )
 
 var cronParser = cron.NewParser(
 	cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow,
 )
 
-func shouldRun(job Job, now time.Time) bool {
+func shouldRun(job model.Job, now time.Time) bool {
 	if !job.Enabled {
 		return false
 	}

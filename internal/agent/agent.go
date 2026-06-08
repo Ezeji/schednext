@@ -7,41 +7,44 @@ import (
 	showtime "time"
 
 	"schednext/internal/util"
+	"schednext/internal/runtime"
+	"schednext/internal/model"
 )
 
 const configName = "schednext.config"
+const runtimePathName = "schednext-runtime"
 
-func RunAgent(homeRoot string) {
-	StartIPCServer(homeRoot)
+var stopChan = make(chan struct{})
+
+func RunAgent(optPath string) {
+	StartIPCServer(optPath)
 
 	ticker := showtime.NewTicker(30 * showtime.Second)
 
 	for {
-		scanUsers(homeRoot)
-		<-ticker.C
-	}
-}
+		select {
+		case <-ticker.C:
+			locateRuntime(optPath)
 
-func scanUsers(homeRoot string) {
-	entries, err := os.ReadDir(homeRoot)
-	if err != nil {
-		log.Println("failed to read home dir:", err)
-		return
-	}
-
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
+		case <-stopChan:
+			log.Println("agent shutting down")
+			return
 		}
-
-		userHome := filepath.Join(homeRoot, e.Name())
-		cfgPath := filepath.Join(userHome, configName)
-
-		processConfig(userHome, cfgPath)
 	}
 }
 
-func processConfig(userHome, cfgPath string) {
+func Shutdown() {
+	close(stopChan)
+}
+
+func locateRuntime(optPath string) {
+	runtimeOptPath := filepath.Join(optPath, runtimePathName)
+	cfgPath := filepath.Join(runtimeOptPath, configName)
+
+	processConfig(runtimeOptPath, cfgPath)
+}
+
+func processConfig(runtimeOptPath, cfgPath string) {
 	f, err := os.OpenFile(cfgPath, os.O_RDWR, 0644)
 	if err != nil {
 		return 
@@ -53,11 +56,13 @@ func processConfig(userHome, cfgPath string) {
 	}
 	defer unlockFile(f)
 
-	var cfg Config
+	var cfg model.Config
 	if err := util.ReadConfig(cfgPath, &cfg); err != nil {
 		log.Println("invalid config:", err)
 		return
 	}
+
+	runtime.SyncFromConfig(cfg)
 
 	now := showtime.Now()
 
@@ -69,7 +74,7 @@ func processConfig(userHome, cfgPath string) {
 			job.LockUntil = &lockUntil
 
 			util.WriteConfigAtomic(cfgPath, &cfg)
-			go executeJob(userHome, configName, job)
+			go executeJob(runtimeOptPath, configName, job)
 		}
 	}
 }
