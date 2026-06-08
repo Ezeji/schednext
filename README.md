@@ -37,6 +37,12 @@ SchedNext exposes live runtime state through a virtual filesystem.
 
 Inspired by Linux `/proc` and `/sys`, runtime state can be inspected using standard Unix tools.
 
+No web server
+No metrics agent
+No SDK
+
+Just files
+
 Examples:
 
 ```bash
@@ -48,12 +54,6 @@ cat /statelens/schednext/all
 
 cat /statelens/schednext/sensor
 ```
-
-No web server
-No metrics agent
-No SDK
-
-Just files
 
 ---
 
