@@ -37,12 +37,6 @@ SchedNext exposes live runtime state through a virtual filesystem.
 
 Inspired by Linux `/proc` and `/sys`, runtime state can be inspected using standard Unix tools.
 
-No web server
-No metrics agent
-No SDK
-
-Just files
-
 Examples:
 
 ```bash
@@ -98,11 +92,7 @@ SchedNext prioritizes:
 - **Simplicity** over complexity
 - **Predictable behavior** over magic
 - **Filesystem primitives** over infrastructure dependencies
-- **Low resource usage** over feature bloat
-
-No database  
-No heavy dependencies  
-No mandatory log files  
+- **Low resource usage** over feature bloat  
 
 ---
 
