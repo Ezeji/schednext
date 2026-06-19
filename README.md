@@ -146,6 +146,7 @@ Example:
 
 ```json
 {
+  "version": 1,
   "jobs": [
     {
       "id": "sensor",
