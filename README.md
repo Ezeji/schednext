@@ -2,7 +2,7 @@
 
 > A lightweight agent runtime for cloud, edge, and embedded Linux environments.
 
-SchedNext is a lightweight runtime for deploying, scheduling, and observing agents.
+SchedNext treats automation as deployable agents that can be scheduled, executed, and observed through filesystem-native interfaces.
 
 It is designed for environments where traditional scheduling platforms may be too heavy or unavailable, including edge devices, cloud VMs, custom Linux distributions, containers, and air-gapped systems.
 
@@ -28,6 +28,60 @@ without requiring databases, web services, or large infrastructure dependencies.
 - 🧠 Dynamic runtime state projection
 - 📦 Small static binaries
 - ⚡ Low memory footprint
+
+---
+
+## 📦 Installation
+
+SchedNext can be installed using the official install script.
+
+Requirements
+- Linux (amd64 or arm64)
+- Root access
+- FUSE support (for StateLens)
+
+Option 1 - Download First
+
+```bash
+curl -O https://raw.githubusercontent.com/Ezeji/schednext/main/install.sh 
+
+chmod +x install.sh 
+
+sudo ./install.sh
+```
+
+Option 2 - Install Latest Release
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Ezeji/schednext/main/install.sh | sudo bash
+```
+
+Option 3 - Install Specific Version
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Ezeji/schednext/main/install.sh | sudo bash -s -- v0.1.0
+```
+
+The installer accepts an optional version argument.
+
+Examples:
+
+sudo ./install.sh
+sudo ./install.sh v0.1.0
+
+---
+
+## Runtime Layout
+
+```
+/opt/schednext-runtime
+├── bin
+│   ├── schednext
+│   └── schednext-agent
+├── heartbeat.sh
+├── schednext.config
+└── user-agents...
+```
 
 ---
 
@@ -113,7 +167,7 @@ SchedNext intentionally **does not write logs to disk**.
 - Users may redirect or pipe logs externally
 - Future versions may support pluggable log sinks
 
-Job execution results are persisted via:
+Agent execution results are persisted via:
 
 - `lastRunAt`
 - `lastExitCode`
@@ -164,14 +218,14 @@ Example:
 
 ---
 
-## 📘 Job Fields
+## 📘 Agent Fields
 
 | Field | Type | Description |
 |------|------|-------------|
-| `id` | string | Unique job identifier |
+| `id` | string | Unique agent identifier |
 | `binary` | string | Executable name or relative path |
 | `cron` | string | Cron expression (5-field format) |
-| `enabled` | bool | Enables/disables job |
+| `enabled` | bool | Enables/disables agent |
 | `lastRunAt` | datetime | Last execution timestamp |
 | `lastExitCode` | int | Exit code of last run |
 | `lockUntil` | datetime | Prevents overlapping runs |
@@ -218,7 +272,7 @@ The agent:
 - Applies runtime locks
 - Executes binaries
 - Streams runtime state
-- Persists job state
+- Persists agent state
 
 ---
 
@@ -227,8 +281,8 @@ The agent:
 Basic commands:
 
 ```bash
-schednext start <job-id>
-schednext stop <job-id>
+schednext start <agent-id>
+schednext stop <agent-id>
 ```
 
 Examples:
@@ -270,6 +324,7 @@ Examples:
 - Edge devices
 - Robotics runtimes
 - IoT gateways
+- Industrial automation nodes
 - Custom Linux distributions
 - Air-gapped systems
 - Containers without cron or systemd
